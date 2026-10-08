@@ -7,7 +7,8 @@
         "dev": "tsx watch src/server.ts",
         "build": "tsc",
         "start": "node dist/server.js",
-        "sync:prices": "tsx src/cron/syncPrices.ts"
+        "sync:prices": "tsx src/cron/syncPrices.ts",
+        "sync:weather": "tsx src/cron/syncWeather.ts"
     },
     "license": "MIT",
     "dependencies": {

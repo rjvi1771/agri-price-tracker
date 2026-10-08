@@ -69,3 +69,26 @@ pricesRouter.get("/prices/seasonal", async (req, res) => {
 
     res.json(result.rows);
 });
+
+// GET /api/weather?market_id=1&all=false
+// Returns weather records for a market. By default, returns upcoming forecast (today onwards).
+pricesRouter.get("/weather", async (req, res) => {
+    const { market_id, all } = req.query;
+
+    if (!market_id) {
+        return res.status(400).json({ error: "market_id is a required query parameter" });
+    }
+
+    const query = all === "true"
+        ? `SELECT record_date, rain_probability, condition, temp_min, temp_max, fetched_at
+           FROM weather_records
+           WHERE market_id = $1
+           ORDER BY record_date ASC`
+        : `SELECT record_date, rain_probability, condition, temp_min, temp_max, fetched_at
+           FROM weather_records
+           WHERE market_id = $1 AND record_date >= CURRENT_DATE
+           ORDER BY record_date ASC`;
+
+    const result = await pool.query(query, [market_id]);
+    res.json(result.rows);
+});

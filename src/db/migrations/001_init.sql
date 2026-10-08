@@ -47,3 +47,6 @@ INSERT INTO crops (name, unit) VALUES ('Onion', 'quintal') ON CONFLICT (name) DO
 INSERT INTO markets (name, district, state, latitude, longitude)
   VALUES ('Mandya', 'Mandya', 'Karnataka', 12.5242, 76.8958)
   ON CONFLICT (name, district) DO NOTHING;
+INSERT INTO markets (name, district, state, latitude, longitude)
+  VALUES ('Bengaluru', 'Bengaluru', 'Karnataka', 12.9716, 77.5946)
+  ON CONFLICT (name, district) DO NOTHING;
