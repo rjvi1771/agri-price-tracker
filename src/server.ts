@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { env } from "./config/env";
 import { pricesRouter } from "./routes/prices";
+import { startScheduler } from "./cron/scheduler";
 
 const app = express();
 
@@ -18,4 +19,5 @@ app.use("/api", pricesRouter);
 
 app.listen(env.port, () => {
     console.log(`[server] Listening on port ${env.port}`);
+    startScheduler();
 });
