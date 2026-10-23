@@ -7,6 +7,7 @@ const BASE_URL = "https://api.openweathermap.org/data/2.5/forecast";
 // collapse those down to one summary per day ourselves below — the API
 // doesn't do that grouping for us.
 interface ForecastEntry {
+    dt: number; // Unix timestamp in seconds (UTC)
     dt_txt: string; // "2026-10-07 12:00:00"
     main: { temp_min: number; temp_max: number };
     weather: { main: string; description: string }[];
@@ -25,6 +26,8 @@ export interface DailyWeather {
     tempMax: number;
 }
 
+const IST_OFFSET_SECONDS = 19800; // 5 hours 30 minutes (IST = UTC + 5:30)
+
 export async function fetchWeatherForecast(lat: number, lon: number): Promise<DailyWeather[]> {
     const url = new URL(BASE_URL);
     url.searchParams.set("lat", String(lat));
@@ -40,13 +43,13 @@ export async function fetchWeatherForecast(lat: number, lon: number): Promise<Da
 
     const data = (await response.json()) as ForecastResponse;
 
-    // Group the 3-hour entries by calendar date, then collapse each
-    // day's entries into one summary: max rain probability seen that
-    // day (a farmer cares about the worst case, not the average), and
-    // the min/max temps across all of that day's entries.
+    // Group the 3-hour entries by IST calendar date, shifting UTC timestamp
+    // by +5:30 (19,800 s) so evening blocks fall on their actual IST date.
     const byDate = new Map<string, ForecastEntry[]>();
     for (const entry of data.list) {
-        const date = entry.dt_txt.split(" ")[0]; // "2026-10-07 12:00:00" -> "2026-10-07"
+        const istDateObj = new Date((entry.dt + IST_OFFSET_SECONDS) * 1000);
+        const date = istDateObj.toISOString().split("T")[0]; // "YYYY-MM-DD" in IST
+
         if (!byDate.has(date)) byDate.set(date, []);
         byDate.get(date)!.push(entry);
     }
@@ -56,9 +59,12 @@ export async function fetchWeatherForecast(lat: number, lon: number): Promise<Da
         const maxPop = Math.max(...entries.map((e) => e.pop));
         const tempMin = Math.min(...entries.map((e) => e.main.temp_min));
         const tempMax = Math.max(...entries.map((e) => e.main.temp_max));
-        // Use the midday entry's condition as representative of the day,
-        // falling back to the first entry if midday isn't present.
-        const midday = entries.find((e) => e.dt_txt.includes("12:00:00")) ?? entries[0];
+
+        // Pick the entry closest to Indian midday (11:00 - 14:00 IST) as representative condition.
+        const midday = entries.find((e) => {
+            const istHour = new Date((e.dt + IST_OFFSET_SECONDS) * 1000).getUTCHours();
+            return istHour >= 11 && istHour <= 14;
+        }) ?? entries[0];
 
         daily.push({
             date,

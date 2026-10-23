@@ -16,6 +16,12 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/api", pricesRouter);
+// Express error middleware — catches any error passed via next(err)
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error("[server error]", err);
+    res.status(500).json({ error: "Internal server error" });
+});
+
 
 app.listen(env.port, () => {
     console.log(`[server] Listening on port ${env.port}`);
