@@ -25,5 +25,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 app.listen(env.port, () => {
     console.log(`[server] Listening on port ${env.port}`);
-    startScheduler();
+    if (env.enableScheduler === "true") {
+        startScheduler();
+    } else {
+        console.log("[server] In-process scheduler disabled (ENABLE_SCHEDULER != 'true')");
+    }
 });

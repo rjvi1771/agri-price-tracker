@@ -28,6 +28,44 @@ interface MandiApiResponse {
     meta: { count: number; state: string; commodity: string };
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url: string): Promise<Response> {
+    let response: Response | null = null;
+    let shouldRetry = false;
+    let reason = "";
+
+    try {
+        response = await fetch(url);
+        if (response.status >= 500 && response.status < 600) {
+            shouldRetry = true;
+            reason = `${response.status} ${response.statusText}`;
+        } else if (!response.ok) {
+            throw new Error(`Mandi API request failed: ${response.status} ${response.statusText}`);
+        } else {
+            return response;
+        }
+    } catch (err: any) {
+        if (response && response.status >= 400 && response.status < 500) {
+            throw err;
+        }
+        shouldRetry = true;
+        reason = err?.message || String(err);
+    }
+
+    if (shouldRetry) {
+        console.warn(`[mandiApiClient] Request failed (${reason}). Retrying once after 5s...`);
+        await sleep(5000);
+        const retryRes = await fetch(url);
+        if (!retryRes.ok) {
+            throw new Error(`Mandi API request failed: ${retryRes.status} ${retryRes.statusText}`);
+        }
+        return retryRes;
+    }
+
+    return response!;
+}
+
 // Fetches records for a state + commodity, then filters to one district
 // ourselves — the API's /v1/prices endpoint doesn't take a district
 // filter directly, only state and commodity, so narrowing to one
@@ -41,11 +79,7 @@ export async function fetchMandiPrices(params: {
     url.searchParams.set("state", params.state);
     url.searchParams.set("commodity", params.commodity);
 
-    const response = await fetch(url.toString());
-
-    if (!response.ok) {
-        throw new Error(`Mandi API request failed: ${response.status} ${response.statusText}`);
-    }
+    const response = await fetchWithRetry(url.toString());
 
     const data = (await response.json()) as MandiApiResponse;
 

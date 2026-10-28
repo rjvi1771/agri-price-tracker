@@ -90,26 +90,30 @@ export async function syncAllPrices() {
     const markets = await pool.query("SELECT district, state FROM markets ORDER BY district");
 
     let totalInserted = 0;
+    let failures = 0;
     for (const crop of crops.rows) {
         for (const market of markets.rows) {
             try {
                 const res = await syncPricesForMarket(crop.name, market.district, market.state);
                 totalInserted += res.inserted;
             } catch (err) {
+                failures++;
                 console.error(`[syncPrices] Failed for ${crop.name} in ${market.district}:`, err);
             }
         }
     }
 
-    console.log(`[syncPrices] Finished syncing prices. Total records upserted: ${totalInserted}`);
-    return { totalInserted };
+    console.log(
+        `[syncPrices] Finished syncing prices. Total records upserted: ${totalInserted}, Failures: ${failures}`
+    );
+    return { totalInserted, failures };
 }
 
 if (require.main === module) {
     syncAllPrices()
-        .then(async () => {
+        .then(async ({ failures }) => {
             await pool.end();
-            process.exit(0);
+            process.exit(failures > 0 ? 1 : 0);
         })
         .catch(async (err) => {
             console.error("[syncPrices] Failed:", err);

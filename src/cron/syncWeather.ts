@@ -38,10 +38,11 @@ export async function syncAllMarketsWeather() {
 
     if (marketsResult.rows.length === 0) {
         console.log("[syncWeather] No markets found with latitude and longitude. Please seed markets first.");
-        return { totalInserted: 0 };
+        return { totalInserted: 0, failures: 0 };
     }
 
     let totalInserted = 0;
+    let failures = 0;
     for (const market of marketsResult.rows) {
         console.log(`[syncWeather] Processing market: ${market.name} (${market.district})...`);
         try {
@@ -52,19 +53,22 @@ export async function syncAllMarketsWeather() {
             );
             totalInserted += inserted;
         } catch (err) {
+            failures++;
             console.error(`[syncWeather] Error syncing weather for ${market.name}:`, err);
         }
     }
 
-    console.log(`[syncWeather] Finished syncing weather. Total daily records upserted: ${totalInserted}`);
-    return { totalInserted };
+    console.log(
+        `[syncWeather] Finished syncing weather. Total daily records upserted: ${totalInserted}, Failures: ${failures}`
+    );
+    return { totalInserted, failures };
 }
 
 if (require.main === module) {
     syncAllMarketsWeather()
-        .then(async () => {
+        .then(async ({ failures }) => {
             await pool.end();
-            process.exit(0);
+            process.exit(failures > 0 ? 1 : 0);
         })
         .catch(async (err) => {
             console.error("[syncWeather] Failed:", err);

@@ -28,6 +28,44 @@ export interface DailyWeather {
 
 const IST_OFFSET_SECONDS = 19800; // 5 hours 30 minutes (IST = UTC + 5:30)
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url: string): Promise<Response> {
+    let response: Response | null = null;
+    let shouldRetry = false;
+    let reason = "";
+
+    try {
+        response = await fetch(url);
+        if (response.status >= 500 && response.status < 600) {
+            shouldRetry = true;
+            reason = `${response.status} ${response.statusText}`;
+        } else if (!response.ok) {
+            throw new Error(`OpenWeatherMap request failed: ${response.status} ${response.statusText}`);
+        } else {
+            return response;
+        }
+    } catch (err: any) {
+        if (response && response.status >= 400 && response.status < 500) {
+            throw err;
+        }
+        shouldRetry = true;
+        reason = err?.message || String(err);
+    }
+
+    if (shouldRetry) {
+        console.warn(`[weatherClient] Request failed (${reason}). Retrying once after 5s...`);
+        await sleep(5000);
+        const retryRes = await fetch(url);
+        if (!retryRes.ok) {
+            throw new Error(`OpenWeatherMap request failed: ${retryRes.status} ${retryRes.statusText}`);
+        }
+        return retryRes;
+    }
+
+    return response!;
+}
+
 export async function fetchWeatherForecast(lat: number, lon: number): Promise<DailyWeather[]> {
     const url = new URL(BASE_URL);
     url.searchParams.set("lat", String(lat));
@@ -35,11 +73,7 @@ export async function fetchWeatherForecast(lat: number, lon: number): Promise<Da
     url.searchParams.set("appid", env.openWeatherApiKey);
     url.searchParams.set("units", "metric"); // Celsius, not Kelvin
 
-    const response = await fetch(url.toString());
-
-    if (!response.ok) {
-        throw new Error(`OpenWeatherMap request failed: ${response.status} ${response.statusText}`);
-    }
+    const response = await fetchWithRetry(url.toString());
 
     const data = (await response.json()) as ForecastResponse;
 
