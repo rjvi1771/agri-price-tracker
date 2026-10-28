@@ -15,11 +15,19 @@ export interface Market {
     state: string;
 }
 
+export interface VarietyRecord {
+    variety: string;
+    grade: string | null;
+}
+
 export interface PriceRecord {
     record_date: string;       // "YYYY-MM-DD"
     min_price: number;
     max_price: number;
     modal_price: number;
+    variety?: string;
+    grade?: string | null;
+    varieties_reported?: number;
 }
 
 export interface SeasonalRecord {
@@ -31,6 +39,7 @@ export interface SeasonalRecord {
 export interface WeatherRecord {
     record_date: string;
     rain_probability: number;
+    rain_mm: number;
     condition: string;
     temp_min: number;
     temp_max: number;
@@ -52,16 +61,30 @@ export function fetchCrops(): Promise<Crop[]> {
 }
 
 export function fetchMarkets(): Promise<Market[]> {
-    return get<Market[]>("/api/markets");
+    return get<Market[]>("/api/markets?with_data=true");
 }
 
-export function fetchPrices(cropId: number, marketId: number, days = 30): Promise<PriceRecord[]> {
-    return get<PriceRecord[]>(`/api/prices?crop_id=${cropId}&market_id=${marketId}&days=${days}`)
+export function fetchVarieties(cropId: number, marketId: number): Promise<VarietyRecord[]> {
+    return get<VarietyRecord[]>(`/api/varieties?crop_id=${cropId}&market_id=${marketId}`);
+}
+
+export function fetchPrices(
+    cropId: number,
+    marketId: number,
+    days = 30,
+    variety?: string
+): Promise<PriceRecord[]> {
+    let url = `/api/prices?crop_id=${cropId}&market_id=${marketId}&days=${days}`;
+    if (variety !== undefined && variety.trim() !== "") {
+        url += `&variety=${encodeURIComponent(variety.trim())}`;
+    }
+    return get<PriceRecord[]>(url)
         .then(rows => rows.map(r => ({
             ...r,
             min_price: Number(r.min_price),
             max_price: Number(r.max_price),
             modal_price: Number(r.modal_price),
+            varieties_reported: r.varieties_reported !== undefined ? Number(r.varieties_reported) : undefined,
         })));
 }
 
@@ -80,6 +103,7 @@ export function fetchWeather(marketId: number): Promise<WeatherRecord[]> {
         .then(rows => rows.map(r => ({
             ...r,
             rain_probability: Number(r.rain_probability),
+            rain_mm: Number(r.rain_mm),
             temp_min: Number(r.temp_min),
             temp_max: Number(r.temp_max),
         })));

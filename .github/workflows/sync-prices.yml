@@ -12,6 +12,7 @@ jobs:
   sync-prices:
     name: Sync Mandi Prices
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -8,13 +8,14 @@ import { WeatherStrip } from "./components/WeatherStrip";
 interface Selection {
   cropId: number;
   marketId: number;
+  variety: string | null;
 }
 
 function App() {
   const [selection, setSelection] = useState<Selection | null>(null);
 
-  function handleSelect(cropId: number, marketId: number) {
-    setSelection({ cropId, marketId });
+  function handleSelect(cropId: number, marketId: number, variety: string | null) {
+    setSelection({ cropId, marketId, variety });
   }
 
   return (
@@ -30,10 +31,23 @@ function App() {
 
         {selection && (
           <div className="tracker-content">
-            <PriceCard cropId={selection.cropId} marketId={selection.marketId} />
-            <PriceTrendChart cropId={selection.cropId} marketId={selection.marketId} />
-            <SeasonalChart cropId={selection.cropId} marketId={selection.marketId} />
-            <WeatherStrip marketId={selection.marketId} />
+            <PriceCard
+              cropId={selection.cropId}
+              marketId={selection.marketId}
+              variety={selection.variety}
+            />
+            <PriceTrendChart
+              cropId={selection.cropId}
+              marketId={selection.marketId}
+              variety={selection.variety}
+            />
+            <SeasonalChart
+              cropId={selection.cropId}
+              marketId={selection.marketId}
+            />
+            <WeatherStrip
+              marketId={selection.marketId}
+            />
           </div>
         )}
       </main>

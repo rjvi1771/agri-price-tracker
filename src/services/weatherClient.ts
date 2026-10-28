@@ -12,6 +12,7 @@ interface ForecastEntry {
     main: { temp_min: number; temp_max: number };
     weather: { main: string; description: string }[];
     pop: number; // "probability of precipitation", 0 to 1 — this is where rain % comes from
+    rain?: { "3h"?: number };
 }
 
 interface ForecastResponse {
@@ -21,6 +22,7 @@ interface ForecastResponse {
 export interface DailyWeather {
     date: string; // "YYYY-MM-DD"
     rainProbability: number; // 0-100
+    rainMm: number;
     condition: string;
     tempMin: number;
     tempMax: number;
@@ -94,16 +96,28 @@ export async function fetchWeatherForecast(lat: number, lon: number): Promise<Da
         const tempMin = Math.min(...entries.map((e) => e.main.temp_min));
         const tempMax = Math.max(...entries.map((e) => e.main.temp_max));
 
-        // Pick the entry closest to Indian midday (11:00 - 14:00 IST) as representative condition.
-        const midday = entries.find((e) => {
-            const istHour = new Date((e.dt + IST_OFFSET_SECONDS) * 1000).getUTCHours();
-            return istHour >= 11 && istHour <= 14;
-        }) ?? entries[0];
+        // Total rain amount in mm for the day
+        const totalRain = entries.reduce((sum, e) => sum + (e.rain?.["3h"] ?? 0), 0);
+        const rainMm = Math.round(totalRain * 10) / 10;
+
+        // Choose condition from the block with highest pop (tie-break: block with more rain, then the later block)
+        const rainiestBlock = entries.reduce((best, current) => {
+            if (current.pop > best.pop) return current;
+            if (current.pop < best.pop) return best;
+
+            const currentRain = current.rain?.["3h"] ?? 0;
+            const bestRain = best.rain?.["3h"] ?? 0;
+            if (currentRain > bestRain) return current;
+            if (currentRain < bestRain) return best;
+
+            return current.dt > best.dt ? current : best;
+        });
 
         daily.push({
             date,
             rainProbability: Math.round(maxPop * 100),
-            condition: midday.weather[0].main,
+            rainMm,
+            condition: rainiestBlock.weather[0]?.main || "Clear",
             tempMin: Math.round(tempMin * 10) / 10,
             tempMax: Math.round(tempMax * 10) / 10,
         });

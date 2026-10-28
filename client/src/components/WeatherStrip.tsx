@@ -93,6 +93,7 @@ export function WeatherStrip({ marketId }: Props) {
                         <div className="weather-condition">{item.condition}</div>
                         <div className="weather-rain">
                             💧 {Math.round(item.rain_probability)}%
+                            {item.rain_mm > 0 && ` - ${item.rain_mm.toFixed(1)} mm`}
                         </div>
                         <div className="weather-temp">
                             {Math.round(item.temp_min)}° – {Math.round(item.temp_max)}°C

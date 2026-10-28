@@ -13,15 +13,16 @@ export async function syncWeatherForMarket(marketId: number, lat: number, lon: n
     let inserted = 0;
     for (const day of forecast) {
         await pool.query(
-            `INSERT INTO weather_records (market_id, record_date, rain_probability, condition, temp_min, temp_max, fetched_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            `INSERT INTO weather_records (market_id, record_date, rain_probability, rain_mm, condition, temp_min, temp_max, fetched_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
        ON CONFLICT (market_id, record_date)
        DO UPDATE SET rain_probability = EXCLUDED.rain_probability,
+                     rain_mm = EXCLUDED.rain_mm,
                      condition = EXCLUDED.condition,
                      temp_min = EXCLUDED.temp_min,
                      temp_max = EXCLUDED.temp_max,
                      fetched_at = NOW()`,
-            [marketId, day.date, day.rainProbability, day.condition, day.tempMin, day.tempMax]
+            [marketId, day.date, day.rainProbability, day.rainMm, day.condition, day.tempMin, day.tempMax]
         );
         inserted++;
     }

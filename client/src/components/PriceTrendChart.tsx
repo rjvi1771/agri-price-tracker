@@ -8,13 +8,14 @@ import {
 interface Props {
     cropId: number;
     marketId: number;
+    variety?: string | null;
 }
 
 interface ChartPoint extends PriceRecord {
     timestamp: number;
 }
 
-export function PriceTrendChart({ cropId, marketId }: Props) {
+export function PriceTrendChart({ cropId, marketId, variety }: Props) {
     const [data, setData] = useState<ChartPoint[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -22,7 +23,7 @@ export function PriceTrendChart({ cropId, marketId }: Props) {
     useEffect(() => {
         setLoading(true);
         setError(null);
-        fetchPrices(cropId, marketId, 30)
+        fetchPrices(cropId, marketId, 30, variety ?? undefined)
             .then(rows => {
                 // API returns newest first — reverse for the chart (oldest on left)
                 const mapped = [...rows].reverse().map(r => ({
@@ -36,7 +37,7 @@ export function PriceTrendChart({ cropId, marketId }: Props) {
                 setError("Failed to load price trend");
                 setLoading(false);
             });
-    }, [cropId, marketId]);
+    }, [cropId, marketId, variety]);
 
     if (loading) return <div className="card loading-card"><p>Loading chart...</p></div>;
     if (error) return <div className="card error-card"><p>{error}</p></div>;

@@ -26,8 +26,8 @@ export async function syncPricesForMarket(cropName: string, district: string, st
         return { inserted: 0 };
     }
 
+    let inserted = 0;
     let skipped = 0;
-    const validRecords = [];
     for (const record of records) {
         // Sanity filter: ignore corrupt numbers and extreme entry typos
         const isPlausible =
@@ -46,34 +46,19 @@ export async function syncPricesForMarket(cropName: string, district: string, st
             );
             continue;
         }
-        validRecords.push(record);
-    }
 
-    // Group by arrival_date and aggregate to one row per date
-    const byDate = new Map<string, { minSum: number; maxSum: number; modalSum: number; count: number }>();
-    for (const r of validRecords) {
-        const entry = byDate.get(r.arrival_date) ?? { minSum: 0, maxSum: 0, modalSum: 0, count: 0 };
-        entry.minSum += r.min_price;
-        entry.maxSum += r.max_price;
-        entry.modalSum += r.modal_price;
-        entry.count += 1;
-        byDate.set(r.arrival_date, entry);
-    }
-
-    let inserted = 0;
-    for (const [arrival_date, stats] of byDate.entries()) {
-        const avgMin = Math.round((stats.minSum / stats.count) * 100) / 100;
-        const avgMax = Math.round((stats.maxSum / stats.count) * 100) / 100;
-        const avgModal = Math.round((stats.modalSum / stats.count) * 100) / 100;
+        const variety = record.variety || "Unknown";
+        const grade = record.grade || null;
 
         await pool.query(
-            `INSERT INTO price_records (crop_id, market_id, record_date, min_price, max_price, modal_price)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (crop_id, market_id, record_date)
+            `INSERT INTO price_records (crop_id, market_id, record_date, variety, grade, min_price, max_price, modal_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (crop_id, market_id, record_date, variety)
        DO UPDATE SET min_price = EXCLUDED.min_price,
                      max_price = EXCLUDED.max_price,
-                     modal_price = EXCLUDED.modal_price`,
-            [cropId, marketId, arrival_date, avgMin, avgMax, avgModal]
+                     modal_price = EXCLUDED.modal_price,
+                     grade = EXCLUDED.grade`,
+            [cropId, marketId, record.arrival_date, variety, grade, record.min_price, record.max_price, record.modal_price]
         );
         inserted++;
     }
